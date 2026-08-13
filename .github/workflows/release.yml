@@ -23,6 +23,7 @@ jobs:
         with:
           repository: deepseek-ai/deepseek-harness
           path: deepseek-harness
+      - run: ln -s "$GITHUB_WORKSPACE/deepseek-harness" "$GITHUB_WORKSPACE/../deepseek-harness"
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: deepseek-harness/package.json
