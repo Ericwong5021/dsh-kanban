@@ -4,5 +4,6 @@ export type BoardColumnId = 'inbox' | 'ready' | 'running' | 'blocked' | 'done'
 
 export interface TaskboardFace {
   openSession: (sessionId: SessionId) => void
+  clearSession: () => void
   createTask: (workspaceId: WorkspaceId, title: string, prompt: string) => Promise<SessionId>
 }

@@ -12,6 +12,7 @@ export function apply(ctx: ClientContext): void {
     order: 80,
     inject: (): TaskboardFace => ({
       openSession: (sessionId: SessionId) => { ctx.sessions.open(sessionId) },
+      clearSession: () => { ctx.sessions.clear() },
       createTask: async (workspaceId: WorkspaceId, title: string, prompt: string) => {
         const sessionId = await ctx.workspaces.connectWorkspace(workspaceId)
         const binding = ctx.sessions.binding(sessionId)
