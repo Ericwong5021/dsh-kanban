@@ -1,5 +1,5 @@
 {
-  "name": "dsh-taskboard",
+  "name": "dsh-kanban",
   "version": "0.1.0",
   "description": "Task board plugin for the DeepSeek Harness Web UI",
   "type": "module",
@@ -22,12 +22,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Ericwong5021/dsh-taskboard.git"
+    "url": "git+https://github.com/Ericwong5021/dsh-kanban.git"
   },
   "bugs": {
-    "url": "https://github.com/Ericwong5021/dsh-taskboard/issues"
+    "url": "https://github.com/Ericwong5021/dsh-kanban/issues"
   },
-  "homepage": "https://github.com/Ericwong5021/dsh-taskboard",
+  "homepage": "https://github.com/Ericwong5021/dsh-kanban",
   "license": "MIT",
   "dsh": {
     "bundle": {

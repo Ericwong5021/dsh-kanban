@@ -8,10 +8,10 @@ import {
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SessionId, SessionSummary, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
-import type { BoardColumnId, TaskboardFace } from './types.ts'
-import css from './Taskboard.module.css'
+import type { BoardColumnId, KanbanFace } from './types.ts'
+import css from './Kanban.module.css'
 
-type Props = PropsRuntime<'sidebar.footer.action'> & InjectFace<TaskboardFace>
+type Props = PropsRuntime<'sidebar.footer.action'> & InjectFace<KanbanFace>
 
 const columns: ReadonlyArray<{ id: BoardColumnId; label: string }> = [
   { id: 'inbox', label: '收件箱' },
@@ -21,11 +21,11 @@ const columns: ReadonlyArray<{ id: BoardColumnId; label: string }> = [
   { id: 'done', label: '已完成' },
 ]
 
-const storageKey = 'dsh-taskboard.columns.v1'
-const taskboardPath = '/taskboard'
+const storageKey = 'dsh-kanban.columns.v1'
+const kanbanPath = '/kanban'
 
-function isTaskboardRoute(): boolean {
-  return window.location.pathname === taskboardPath
+function isKanbanRoute(): boolean {
+  return window.location.pathname === kanbanPath
 }
 
 function loadOverrides(): Record<string, BoardColumnId> {
@@ -52,10 +52,10 @@ function relativeTime(time: number): string {
   return `${Math.floor(seconds / 86400)} 天前`
 }
 
-export function Taskboard({ wide, useSessions, useWorkspaces, openSession, clearSession, createTask }: Props) {
+export function Kanban({ wide, useSessions, useWorkspaces, openSession, clearSession, createTask }: Props) {
   const sessions = useSessions(state => state)
   const workspaces = useWorkspaces(state => state.items)
-  const [open, setOpen] = useState(isTaskboardRoute)
+  const [open, setOpen] = useState(isKanbanRoute)
   const [pageHost, setPageHost] = useState<HTMLElement | null>(null)
   const previousSession = useRef<SessionId | undefined>(sessions.current)
   const routeSessionCleared = useRef(false)
@@ -74,7 +74,7 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, clear
 
   useEffect(() => {
     const syncRoute = () => {
-      const next = isTaskboardRoute()
+      const next = isKanbanRoute()
       if (next) {
         previousSession.current = sessions.current
         routeSessionCleared.current = false
@@ -121,7 +121,7 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, clear
     if (open) return
     previousSession.current = sessions.current
     routeSessionCleared.current = true
-    window.history.pushState({ ...window.history.state, taskboard: true }, '', taskboardPath)
+    window.history.pushState({ ...window.history.state, kanban: true }, '', kanbanPath)
     clearSession()
     setOpen(true)
   }

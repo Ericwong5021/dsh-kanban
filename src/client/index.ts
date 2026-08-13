@@ -1,16 +1,16 @@
 import type { ClientContext, SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import type { TaskboardFace } from './types.ts'
-import { Taskboard } from './Taskboard.tsx'
+import type { KanbanFace } from './types.ts'
+import { Kanban } from './Kanban.tsx'
 
 export const inject = ['slots', 'sessions', 'workspaces']
 
 export function apply(ctx: ClientContext): void {
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
-    id: 'taskboard',
+    id: 'kanban',
     order: 80,
-    inject: (): TaskboardFace => ({
+    inject: (): KanbanFace => ({
       openSession: (sessionId: SessionId) => { ctx.sessions.open(sessionId) },
       clearSession: () => { ctx.sessions.clear() },
       createTask: async (workspaceId: WorkspaceId, title: string, prompt: string) => {
@@ -25,5 +25,5 @@ export function apply(ctx: ClientContext): void {
         return sessionId
       },
     }),
-  }, Taskboard))
+  }, Kanban))
 }

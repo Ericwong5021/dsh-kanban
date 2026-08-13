@@ -3,8 +3,8 @@ import { basename } from 'node:path'
 import { transform } from 'lightningcss'
 import { defineConfig } from 'tsdown'
 
-const id = 'dsh-taskboard'
-const cssPrefix = '\0taskboard-css:'
+const id = 'dsh-kanban'
+const cssPrefix = '\0kanban-css:'
 const cssSuffix = '.mjs'
 const external = [
   'react',
@@ -41,7 +41,7 @@ export default defineConfig([
     external,
     noExternal: (source: string) => external.includes(source) ? undefined : true,
     plugins: [{
-      name: 'dsh-taskboard-css',
+      name: 'dsh-kanban-css',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css') || importer === undefined) return null
         return `${cssPrefix}${new URL(source, `file://${importer}`).pathname}${cssSuffix}`
