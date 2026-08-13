@@ -33,7 +33,7 @@ jobs:
           cache-dependency-path: deepseek-harness/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: deepseek-harness
-      - run: npm install --ignore-scripts
+      - run: pnpm install --no-frozen-lockfile
       - run: npm run build
       - run: npm pack
       - name: Create GitHub release
