@@ -22,6 +22,11 @@ const columns: ReadonlyArray<{ id: BoardColumnId; label: string }> = [
 ]
 
 const storageKey = 'dsh-taskboard.columns.v1'
+const taskboardPath = '/taskboard'
+
+function isTaskboardRoute(): boolean {
+  return window.location.pathname === taskboardPath
+}
 
 function loadOverrides(): Record<string, BoardColumnId> {
   try {
@@ -47,12 +52,13 @@ function relativeTime(time: number): string {
   return `${Math.floor(seconds / 86400)} 天前`
 }
 
-export function Taskboard({ wide, useSessions, useWorkspaces, openSession, createTask }: Props) {
+export function Taskboard({ wide, useSessions, useWorkspaces, openSession, clearSession, createTask }: Props) {
   const sessions = useSessions(state => state)
   const workspaces = useWorkspaces(state => state.items)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(isTaskboardRoute)
   const [pageHost, setPageHost] = useState<HTMLElement | null>(null)
-  const sessionAtOpen = useRef<SessionId | undefined>()
+  const previousSession = useRef<SessionId | undefined>(sessions.current)
+  const routeSessionCleared = useRef(false)
   const [creating, setCreating] = useState(false)
   const [overrides, setOverrides] = useState(loadOverrides)
   const [query, setQuery] = useState('')
@@ -67,27 +73,63 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
   [sessions, query])
 
   useEffect(() => {
+    const syncRoute = () => {
+      const next = isTaskboardRoute()
+      if (next) {
+        previousSession.current = sessions.current
+        routeSessionCleared.current = false
+      } else if (open && sessions.current === undefined && previousSession.current !== undefined) {
+        openSession(previousSession.current)
+      }
+      setOpen(next)
+    }
+    window.addEventListener('popstate', syncRoute)
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [open, openSession, sessions.current])
+
+  useEffect(() => {
     if (!open) {
       setPageHost(null)
       return
     }
-    const root = document.querySelector<HTMLElement>('[data-conversation-scroll]')?.parentElement
-    if (root === undefined || root === null) return
-    const previous = root.style.position
-    root.style.position = 'relative'
-    setPageHost(root)
+    const conversation = document.querySelector<HTMLElement>('[data-conversation-scroll]')?.parentElement
+    const host = conversation?.parentElement
+    if (conversation === undefined || conversation === null || host === undefined || host === null) return
+    const previous = conversation.style.display
+    conversation.style.display = 'none'
+    setPageHost(host)
     return () => {
-      root.style.position = previous
+      conversation.style.display = previous
     }
   }, [open])
 
   useEffect(() => {
-    if (open && sessions.current !== sessionAtOpen.current) setOpen(false)
-  }, [open, sessions.current])
+    if (!open || sessions.phase !== 'ready') return
+    if (!routeSessionCleared.current) {
+      previousSession.current = sessions.current
+      clearSession()
+      routeSessionCleared.current = true
+      return
+    }
+    if (sessions.current !== undefined) {
+      window.history.replaceState(window.history.state, '', '/')
+      setOpen(false)
+    }
+  }, [clearSession, open, sessions.current, sessions.phase])
 
   const showBoard = () => {
-    sessionAtOpen.current = sessions.current
+    if (open) return
+    previousSession.current = sessions.current
+    routeSessionCleared.current = true
+    window.history.pushState({ ...window.history.state, taskboard: true }, '', taskboardPath)
+    clearSession()
     setOpen(true)
+  }
+
+  const showSession = (sessionId: SessionId) => {
+    window.history.replaceState(window.history.state, '', '/')
+    setOpen(false)
+    openSession(sessionId)
   }
 
   const move = (sessionId: SessionId, column: BoardColumnId) => {
@@ -105,7 +147,6 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
     try {
       await createTask(workspaceId, title.trim(), prompt.trim())
       setCreating(false)
-      setOpen(false)
       setTitle('')
       setPrompt('')
     } catch (reason) {
@@ -115,7 +156,7 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
 
   return (
     <div className={`${css.entry} ${wide ? '' : css.rail}`}>
-      <button type="button" className={`${css.trigger} ${open ? css.triggerActive : ''}`} aria-label="打开任务看板" aria-pressed={open} onClick={showBoard}>
+      <button type="button" className={`${css.trigger} ${open ? css.triggerActive : ''}`} aria-label="打开任务看板" aria-current={open ? 'page' : undefined} onClick={showBoard}>
         <IconChecklistOutline14 size={16} />
         {wide && <span>任务看板</span>}
         {wide && <span className={css.total}>{sessions.ids.length}</span>}
@@ -136,7 +177,6 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
                 <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索任务" aria-label="搜索任务" />
               </label>
               <Button variant="primary" size="sm" icon={<IconPlusOutline16 size={14} />} onClick={() => setCreating(true)}>新建任务</Button>
-              <button type="button" className={css.close} aria-label="返回会话" onClick={() => setOpen(false)}><IconCloseOutline16 size={16} /></button>
             </div>
           </header>
           <div className={css.board}>
@@ -176,12 +216,11 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
                         aria-disabled={session.running || session.pendingInteraction !== undefined}
                         data-locked={session.running || session.pendingInteraction !== undefined || undefined}
                         onDragStart={event => event.dataTransfer.setData('text/plain', session.id)}
-                        onClick={() => { openSession(session.id); setOpen(false) }}
+                        onClick={() => showSession(session.id)}
                         onKeyDown={event => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault()
-                            openSession(session.id)
-                            setOpen(false)
+                            showSession(session.id)
                           }
                         }}
                       >
