@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { DragEvent, FormEvent } from 'react'
 import {
   Button, IconChecklistOutline14, IconCloseOutline16, IconNewChatOutline16,
-  IconPlusOutline16, Modal,
+  IconPlusOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -50,6 +51,8 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
   const sessions = useSessions(state => state)
   const workspaces = useWorkspaces(state => state.items)
   const [open, setOpen] = useState(false)
+  const [pageHost, setPageHost] = useState<HTMLElement | null>(null)
+  const sessionAtOpen = useRef<SessionId | undefined>()
   const [creating, setCreating] = useState(false)
   const [overrides, setOverrides] = useState(loadOverrides)
   const [query, setQuery] = useState('')
@@ -63,7 +66,33 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
     .filter(session => query === '' || `${session.displayTitle} ${session.cwd ?? ''}`.toLowerCase().includes(query.toLowerCase())),
   [sessions, query])
 
+  useEffect(() => {
+    if (!open) {
+      setPageHost(null)
+      return
+    }
+    const root = document.querySelector<HTMLElement>('[data-conversation-scroll]')?.parentElement
+    if (root === undefined || root === null) return
+    const previous = root.style.position
+    root.style.position = 'relative'
+    setPageHost(root)
+    return () => {
+      root.style.position = previous
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open && sessions.current !== sessionAtOpen.current) setOpen(false)
+  }, [open, sessions.current])
+
+  const showBoard = () => {
+    sessionAtOpen.current = sessions.current
+    setOpen(true)
+  }
+
   const move = (sessionId: SessionId, column: BoardColumnId) => {
+    const session = sessions.byId[sessionId]
+    if (session === undefined || session.running || session.pendingInteraction !== undefined) return
     const next = { ...overrides, [sessionId]: column }
     setOverrides(next)
     localStorage.setItem(storageKey, JSON.stringify(next))
@@ -76,6 +105,7 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
     try {
       await createTask(workspaceId, title.trim(), prompt.trim())
       setCreating(false)
+      setOpen(false)
       setTitle('')
       setPrompt('')
     } catch (reason) {
@@ -85,13 +115,13 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
 
   return (
     <div className={`${css.entry} ${wide ? '' : css.rail}`}>
-      <button type="button" className={css.trigger} aria-label="打开任务看板" onClick={() => setOpen(true)}>
+      <button type="button" className={`${css.trigger} ${open ? css.triggerActive : ''}`} aria-label="打开任务看板" aria-pressed={open} onClick={showBoard}>
         <IconChecklistOutline14 size={16} />
         {wide && <span>任务看板</span>}
         {wide && <span className={css.total}>{sessions.ids.length}</span>}
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="任务看板" className={css.modalShell} headless>
-        <section className={css.surface} lang="zh-CN">
+      {open && pageHost !== null && createPortal(
+        <main className={css.page} lang="zh-CN" aria-label="任务看板">
           <header className={css.header}>
             <div className={css.heading}>
               <span className={css.mark}><IconChecklistOutline14 size={18} /></span>
@@ -106,12 +136,18 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
                 <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索任务" aria-label="搜索任务" />
               </label>
               <Button variant="primary" size="sm" icon={<IconPlusOutline16 size={14} />} onClick={() => setCreating(true)}>新建任务</Button>
-              <button type="button" className={css.close} aria-label="关闭任务看板" onClick={() => setOpen(false)}><IconCloseOutline16 size={16} /></button>
+              <button type="button" className={css.close} aria-label="返回会话" onClick={() => setOpen(false)}><IconCloseOutline16 size={16} /></button>
             </div>
           </header>
           <div className={css.board}>
             {columns.map(column => {
-              const items = visible.filter(session => (overrides[session.id] ?? automaticColumn(session)) === column.id)
+              const items = visible.filter(session => {
+                const automatic = automaticColumn(session)
+                const resolved = session.running || session.pendingInteraction !== undefined || session.completed
+                  ? automatic
+                  : overrides[session.id] ?? automatic
+                return resolved === column.id
+              })
               return (
                 <section
                   className={css.column}
@@ -126,7 +162,8 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
                   <header className={css.columnHeader}>
                     <span className={css.dot} />
                     <h2>{column.label}</h2>
-                    <span>{items.length}</span>
+                    <span className={css.columnCount}>{items.length}</span>
+                    {column.id !== 'done' && <button type="button" className={css.columnAdd} aria-label={`在${column.label}中新建任务`} onClick={() => setCreating(true)}><IconPlusOutline16 size={14} /></button>}
                   </header>
                   <div className={css.cards}>
                     {items.map(session => (
@@ -135,7 +172,9 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
                         tabIndex={0}
                         className={css.card}
                         key={session.id}
-                        draggable
+                        draggable={!session.running && session.pendingInteraction === undefined}
+                        aria-disabled={session.running || session.pendingInteraction !== undefined}
+                        data-locked={session.running || session.pendingInteraction !== undefined || undefined}
                         onDragStart={event => event.dataTransfer.setData('text/plain', session.id)}
                         onClick={() => { openSession(session.id); setOpen(false) }}
                         onKeyDown={event => {
@@ -191,8 +230,9 @@ export function Taskboard({ wide, useSessions, useWorkspaces, openSession, creat
               </form>
             </div>
           )}
-        </section>
-      </Modal>
+        </main>,
+        pageHost,
+      )}
     </div>
   )
 }
