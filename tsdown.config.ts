@@ -4,6 +4,8 @@ import { transform } from 'lightningcss'
 import { defineConfig } from 'tsdown'
 
 const id = 'dsh-taskboard'
+const cssPrefix = '\0taskboard-css:'
+const cssSuffix = '.mjs'
 const external = [
   'react',
   'react/jsx-runtime',
@@ -23,6 +25,9 @@ export default defineConfig([
     target: 'es2024',
     clean: false,
     dts: false,
+    outputOptions: {
+      entryFileNames: 'index.js',
+    },
   },
   {
     entry: { client: 'lib/types/client/index.js' },
@@ -39,11 +44,11 @@ export default defineConfig([
       name: 'dsh-taskboard-css',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css') || importer === undefined) return null
-        return `\0taskboard-css:${new URL(source, `file://${importer}`).pathname}`
+        return `${cssPrefix}${new URL(source, `file://${importer}`).pathname}${cssSuffix}`
       },
       async load(source: string) {
-        if (!source.startsWith('\0taskboard-css:')) return null
-        const file = source.slice('\0taskboard-css:'.length).replace('/lib/types/', '/src/')
+        if (!source.startsWith(cssPrefix) || !source.endsWith(cssSuffix)) return null
+        const file = source.slice(cssPrefix.length, -cssSuffix.length).replace('/lib/types/', '/src/')
         const result = transform({
           filename: file,
           code: await readFile(file),
