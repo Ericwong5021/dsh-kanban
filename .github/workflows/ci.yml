@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: deepseek-ai/deepseek-harness
+          path: deepseek-harness
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          package_json_file: deepseek-harness/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: deepseek-harness/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: deepseek-harness
+      - run: npm install --ignore-scripts
+      - run: npm run build
+      - run: npm run pack:check
