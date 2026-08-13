@@ -26,7 +26,7 @@ dsh plugin --profile <profile> add https://github.com/Ericwong5021/dsh-kanban
 To install a release archive directly:
 
 ```sh
-dsh plugin --profile <profile> add https://github.com/Ericwong5021/dsh-kanban/releases/latest/download/dsh-kanban-0.1.0.tgz
+dsh plugin --profile <profile> add https://github.com/Ericwong5021/dsh-kanban/releases/latest/download/dsh-kanban-0.1.1.tgz
 ```
 
 Start the profile, then select `任务看板` in the Harness sidebar footer.
